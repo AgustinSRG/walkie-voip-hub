@@ -1,0 +1,9 @@
+[
+    {
+        "id": "group-1",
+        "ws": "wss://localhost:8089/ws",
+        "uri": "sip:sip-user@domain.com",
+        "password": "password",
+        "members": ["sip:sip-user@domain.com", "sip:sip-user@domain.com", "sip:sip-user@domain.com"]
+    }
+]

@@ -1,0 +1,35 @@
+{
+  "name": "walkie-voip-hub",
+  "version": "1.0.0",
+  "description": "VoIP experiment",
+  "main": "dist/index.js",
+  "scripts": {
+    "watch": "npm run watch:ts",
+    "watch:ts": "npm run build:ts -- --watch --diagnostics",
+    "prebuild": "npm run lint",
+    "compile": "tsc --pretty",
+    "build": "rimraf dist && tsc --pretty",
+    "lint": "eslint --fix src/**/*.ts",
+    "start": "node dist/index.js"
+  },
+  "engines": {
+    "node": ">= 10.16.3"
+  },
+  "author": "",
+  "license": "ISC",
+  "private": true,
+  "devDependencies": {
+    "@types/node": "^17.0.17",
+    "@typescript-eslint/eslint-plugin": "^5.11.0",
+    "@typescript-eslint/parser": "^5.11.0",
+    "eslint": "^8.8.0",
+    "rimraf": "^3.0.2",
+    "typescript": "^4.5.5"
+  },
+  "dependencies": {
+    "dotenv": "^16.0.0",
+    "jssip": "^3.9.0",
+    "jssip-node-websocket": "^3.0.0",
+    "wrtc": "^0.4.7"
+  }
+}
