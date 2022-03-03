@@ -6,7 +6,7 @@ import { PeerConnectionEvent, RTCSession } from 'jssip/lib/RTCSession';
 import { EventEmitter } from 'events';
 import { Config } from './config';
 import WebRTC from 'wrtc';
-import { WalkieOutgoingSession } from './walkie-outgoung-session';
+import { WalkieOutgoingSession } from './walkie-outgoing-session';
 
 export interface AudioData {
     samples: Int16Array;

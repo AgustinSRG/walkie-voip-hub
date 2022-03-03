@@ -8,7 +8,7 @@ import { RTCSession } from 'jssip/lib/RTCSession';
 import { RTCSessionEvent } from 'jssip/lib/UA';
 import { Config, WalkieConfig } from './config';
 import { WalkieIncomingSession } from './walkie-incoming-session';
-import { WalkieOutgoingSession } from './walkie-outgoung-session';
+import { WalkieOutgoingSession } from './walkie-outgoing-session';
 
 const callOptions = {
     mediaConstraints: {
