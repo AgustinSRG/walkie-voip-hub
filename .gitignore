@@ -11,6 +11,7 @@ dist
 # Ignore temp files
 
 temp
+test
 
 # Ignore .env
 
