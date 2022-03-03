@@ -33,6 +33,7 @@ In order to configure this module, you have to set the following environment var
 | Variable Name | Description |
 |---|---|
 | LOG_MODE | Log Mode. values: DEFAULT, SILENT, DEBUG |
+| BUFFER_LENGTH_MB | Size in megabytes of the audio buffer |
 | GROUPS_CONFIG_FILE | Path to the walkie configuration file |
 
 The walkie configuration file must be a json file with an array.

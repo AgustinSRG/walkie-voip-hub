@@ -4,8 +4,11 @@
 
 import JsSIP from 'jssip';
 import NodeWebSocket from 'jssip-node-websocket';
+import { RTCSession } from 'jssip/lib/RTCSession';
 import { RTCSessionEvent } from 'jssip/lib/UA';
 import { Config, WalkieConfig } from './config';
+import { WalkieIncomingSession } from './walkie-incoming-session';
+import { WalkieOutgoingSession } from './walkie-outgoung-session';
 
 const callOptions = {
     mediaConstraints: {
@@ -17,11 +20,20 @@ const callOptions = {
 export class Walkie {
 
     public config: WalkieConfig;
+
+    public memberSet: Set<string>;
+
     public phone: JsSIP.UA;
     public socket: NodeWebSocket;
 
+    public nextId: number;
+
+    public incomingSessions: Map<string, WalkieIncomingSession>;
+
     constructor(config: WalkieConfig) {
         this.config = config;
+        this.memberSet = new Set(config.members);
+        this.nextId = 0;
     }
 
     public start() {
@@ -73,14 +85,86 @@ export class Walkie {
 
     private onRTCSession(ev: RTCSessionEvent) {
         const session = ev.session;
+
+        if (session.direction === "incoming") {
+            this.onIncomingSession(session);
+        } else if (session.direction === "outgoing") {
+            this.onOutgoingSession(session);
+        } else {
+            session.terminate();
+        }
+    }
+
+    private onIncomingSession(session: RTCSession) {
         const remoteId = session.remote_identity.uri.toString();
-        this.logEvent(`Session received. direction=${session.direction}, number=${remoteId}`);
+        this.logEvent(`Session received. direction=${session.direction}, identity=${remoteId}`);
+
+        if (!this.memberSet.has(remoteId)) {
+            session.terminate();
+            this.logEvent(`Session closed. direction=${session.direction}, identity=${remoteId}, reason=Not in the members list`);
+            return;
+        }
+
+        this.nextId++;
+
+        const id = this.nextId + "";
+
+        this.logEvent(`Input session started. id=${id}, identity=${remoteId}`);
+
+        const s = new WalkieIncomingSession(session, id, this.memberSet);
+
+        this.incomingSessions.set(id, s);
+
+        s.on("finish", () => {
+            this.incomingSessions.delete(id);
+            this.logEvent(`Input session ended. id=${id}, identity=${remoteId}`);
+        });
+
+        s.on("open", () => {
+            this.logEvent(`Input session openned. id=${id}, identity=${remoteId}`);
+        });
+
+        s.on("close", (cause: string) => {
+            this.logEvent(`Session closed. direction=${session.direction}, identity=${remoteId}, reason=${cause}`);
+        });
+
+        s.on("member-closed", (out: WalkieOutgoingSession, cause: string) => {
+            this.logEvent(`Output session created. input-id=${s.id}, output-identity=${out.identity}, cause=${cause}`);
+        });
+
+        s.start();
+
+        // Call other peers
+        for (const memberToCall of s.pendingMembers) {
+            this.phone.call(memberToCall, {
+                mediaConstraints: {
+                    audio: true, // only audio calls
+                    video: false
+                },
+            })
+        }
+    }
+
+    private onOutgoingSession(session: RTCSession) {
+        const remoteId = session.remote_identity.uri.toString();
+        this.logEvent(`Session sent. direction=${session.direction}, identity=${remoteId}`);
+
+        for (const s of this.incomingSessions.values()) {
+            if (s.pendingMembers.has(remoteId)) {
+                this.logEvent(`Output session created. input-id=${s.id}, output-identity=${remoteId}`);
+                s.addOutgoing(remoteId, session);
+                return;
+            }
+        }
+
+        // Not assignable
+        session.terminate();
     }
 
     /* Private methods */
 
     /**
-     * Crears the phone data
+     * Clears the phone data
      */
     private clear() {
         if (this.phone) {
@@ -90,7 +174,7 @@ export class Walkie {
         if (this.socket) {
             try {
                 this.socket.disconnect();
-            } catch (ex) {}
+            } catch (ex) { }
             this.socket = null;
         }
     }

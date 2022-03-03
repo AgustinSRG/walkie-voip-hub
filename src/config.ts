@@ -35,6 +35,8 @@ export class Config {
     public groupsFile: string;
     public walkies: WalkieConfig[];
 
+    public bufferLength: number;
+
     public logEvents: boolean;
     public logDebug: boolean;
     public logType: number;
@@ -43,6 +45,8 @@ export class Config {
         this.groupsFile = process.env.GROUPS_CONFIG_FILE || "groups.json";
 
         this.walkies = JSON.parse(readFileSync(this.groupsFile).toString());
+
+        this.bufferLength = parseInt(process.env.BUFFER_LENGTH_MB || "16") || 0;
 
         const logMode = process.env.LOG_MODE + "";
 
