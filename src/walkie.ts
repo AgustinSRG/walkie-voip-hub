@@ -10,13 +10,6 @@ import { Config, WalkieConfig } from './config';
 import { WalkieIncomingSession } from './walkie-incoming-session';
 import { WalkieOutgoingSession } from './walkie-outgoing-session';
 
-const callOptions = {
-    mediaConstraints: {
-        audio: true, // only audio calls
-        video: false
-    }
-};
-
 export class Walkie {
 
     public config: WalkieConfig;
@@ -86,19 +79,16 @@ export class Walkie {
     private onRTCSession(ev: RTCSessionEvent) {
         const session = ev.session;
 
+        const remoteId = session.remote_identity.uri.toString();
+        this.logEvent(`Session. direction=${session.direction}, identity=${remoteId}`);
+
         if (session.direction === "incoming") {
             this.onIncomingSession(session);
-        } else if (session.direction === "outgoing") {
-            this.onOutgoingSession(session);
-        } else {
-            session.terminate();
         }
     }
 
     private onIncomingSession(session: RTCSession) {
         const remoteId = session.remote_identity.uri.toString();
-        this.logEvent(`Session received. direction=${session.direction}, identity=${remoteId}`);
-
         if (!this.memberSet.has(remoteId)) {
             session.terminate();
             this.logEvent(`Session closed. direction=${session.direction}, identity=${remoteId}, reason=Not in the members list`);
@@ -136,29 +126,11 @@ export class Walkie {
 
         // Call other peers
         for (const memberToCall of s.pendingMembers) {
-            this.phone.call(memberToCall, {
-                mediaConstraints: {
-                    audio: true, // only audio calls
-                    video: false
-                },
-            })
+            const outG = new WalkieOutgoingSession(memberToCall);
+            this.phone.call(memberToCall, { mediaStream: outG.getMediaStream() });
+            this.logEvent(`Output session created. input-id=${s.id}, output-identity=${remoteId}`);
+            s.addOutgoing(remoteId, outG);
         }
-    }
-
-    private onOutgoingSession(session: RTCSession) {
-        const remoteId = session.remote_identity.uri.toString();
-        this.logEvent(`Session sent. direction=${session.direction}, identity=${remoteId}`);
-
-        for (const s of this.incomingSessions.values()) {
-            if (s.pendingMembers.has(remoteId)) {
-                this.logEvent(`Output session created. input-id=${s.id}, output-identity=${remoteId}`);
-                s.addOutgoing(remoteId, session);
-                return;
-            }
-        }
-
-        // Not assignable
-        session.terminate();
     }
 
     /* Private methods */

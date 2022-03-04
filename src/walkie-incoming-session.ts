@@ -142,10 +142,9 @@ export class WalkieIncomingSession extends EventEmitter {
         }
     }
 
-    public addOutgoing(identity: string, session: RTCSession) {
+    public addOutgoing(identity: string, s: WalkieOutgoingSession) {
         this.pendingMembers.delete(identity);
 
-        const s = new WalkieOutgoingSession(session);
         this.members.set(identity, s);
 
         s.on("close", this.onOutgoingClosed.bind(this));

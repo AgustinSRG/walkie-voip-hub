@@ -20,17 +20,19 @@ export class WalkieOutgoingSession extends EventEmitter {
     public track: MediaStreamTrack;
     public source: WebRTC.nonstandard.RTCAudioSource;
 
-    constructor(session: RTCSession) {
+    constructor(identity: string) {
         super();
 
         this.ended = false;
-        this.session = session;
-        this.identity = session.remote_identity.uri.toString();
-    }
+        
+        this.identity = identity;
 
-    public start() {
         this.source = new WebRTC.nonstandard.RTCAudioSource();
         this.track = this.source.createTrack();
+    }
+
+    public start(session: RTCSession) {
+        this.session = session;
 
         this.session.on("ended", this.onSessionClose.bind(this));
         this.session.on("failed", this.onSessionClose.bind(this));
@@ -45,6 +47,12 @@ export class WalkieOutgoingSession extends EventEmitter {
         this.source.close();
         this.session.removeAllListeners();
         this.session.terminate();
+    }
+
+    public getMediaStream(): MediaStream {
+        const stream = new MediaStream();
+        stream.addTrack(this.track);
+        return stream;
     }
 
     /**
