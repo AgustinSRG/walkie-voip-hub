@@ -43,10 +43,12 @@ export class WalkieOutgoingSession extends EventEmitter {
 
     public destroy() {
         this.ended = true;
-        this.track.stop();
-        this.source.close();
+        //this.track.stop();
+        //this.source.close();
         this.session.removeAllListeners();
-        this.session.terminate();
+        if (this.session.status !== 8) {
+            this.session.terminate();
+        }
     }
 
     public getMediaStream(): MediaStream {
@@ -82,8 +84,6 @@ export class WalkieOutgoingSession extends EventEmitter {
     }
 
     private onPeerConnection(ev: PeerConnectionEvent) {
-        const connection = ev.peerconnection;
-        connection.addTrack(this.track);
         this.connected = true;
         this.emit("connected", this);
     }

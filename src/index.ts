@@ -10,6 +10,7 @@ import { WalkieHub } from './hub';
 global.window = <any>{
     MediaStream: WebRTC.MediaStream,
     RTCPeerConnection: WebRTC.RTCPeerConnection,
+    RTCSessionDescription: WebRTC.RTCSessionDescription,
 };
 
 for (const k of Object.keys(global.window)) {

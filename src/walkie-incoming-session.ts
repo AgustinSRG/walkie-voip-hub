@@ -49,6 +49,7 @@ export class WalkieIncomingSession extends EventEmitter {
         this.bufferLimit = Config.getInstance().bufferLength * 1024 * 1024;
 
         this.pendingMembers = new Set();
+        this.pendingConnected = new Set();
         this.members = new Map();
 
         for (const member of members) {
@@ -68,7 +69,20 @@ export class WalkieIncomingSession extends EventEmitter {
         this.session.on("confirmed", this.onCallConfirmed.bind(this));
         this.session.on("peerconnection", this.onPeerConnection.bind(this));
 
-        this.session.answer();
+        this.session.answer({
+            pcConfig: {
+                iceServers: [
+                    {
+                        "urls": "stun:stun.l.google.com:19302"
+                    },
+                    {
+                        "urls": "turn:webrtc.imira.net:3478",
+                        "username": "imira",
+                        "credential": "imira"
+                    }
+                ]
+            },
+        });
     }
 
     public destroy() {
@@ -79,7 +93,9 @@ export class WalkieIncomingSession extends EventEmitter {
         }
         this.ended = true;
         this.session.removeAllListeners();
-        this.session.terminate();
+        if (this.session.status !== 8) {
+            this.session.terminate();
+        }
     }
 
     /* Event listeners */
@@ -101,6 +117,7 @@ export class WalkieIncomingSession extends EventEmitter {
         const connection = ev.peerconnection;
 
         this.emit("peerconnection", connection);
+        console.log("Incoming peer connection");
 
         connection.addEventListener("track", ev => {
             const track = ev.track;
@@ -126,6 +143,7 @@ export class WalkieIncomingSession extends EventEmitter {
     }
 
     private onAudioData(data: AudioData) {
+        console.log("On audio data");
         this.buffer.push(data);
         this.bufferSize += data.samples.length;
 
@@ -166,6 +184,7 @@ export class WalkieIncomingSession extends EventEmitter {
     private onOutgoingClosed(out: WalkieOutgoingSession, cause: string) {
         this.emit("member-closed", out, cause);
         this.pendingConnected.delete(out.identity);
+        this.members.delete(out.identity);
 
         if (this.ended && this.pendingConnected.size === 0) {
             this.onFinished();

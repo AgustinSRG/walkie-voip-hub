@@ -26,6 +26,7 @@ export class Walkie {
     constructor(config: WalkieConfig) {
         this.config = config;
         this.memberSet = new Set(config.members);
+        this.incomingSessions = new Map();
         this.nextId = 0;
     }
 
@@ -79,19 +80,17 @@ export class Walkie {
     private onRTCSession(ev: RTCSessionEvent) {
         const session = ev.session;
 
-        const remoteId = session.remote_identity.uri.toString();
-        this.logEvent(`Session. direction=${session.direction}, identity=${remoteId}`);
+        this.logEvent(`Session. local=${session.local_identity.uri.toString()}, remote=${session.remote_identity.uri.toString()}`);
 
         if (session.direction === "incoming") {
-            this.onIncomingSession(session);
+            this.onIncomingSession(session, session.remote_identity.uri.toString());
         }
     }
 
-    private onIncomingSession(session: RTCSession) {
-        const remoteId = session.remote_identity.uri.toString();
-        if (!this.memberSet.has(remoteId)) {
+    private onIncomingSession(session: RTCSession, identity: string) {
+        if (!this.memberSet.has(identity)) {
             session.terminate();
-            this.logEvent(`Session closed. direction=${session.direction}, identity=${remoteId}, reason=Not in the members list`);
+            this.logEvent(`Session closed. direction=${session.direction}, identity=${identity}, reason=Not in the members list`);
             return;
         }
 
@@ -99,7 +98,7 @@ export class Walkie {
 
         const id = this.nextId + "";
 
-        this.logEvent(`Input session started. id=${id}, identity=${remoteId}`);
+        this.logEvent(`Input session started. id=${id}, identity=${identity}`);
 
         const s = new WalkieIncomingSession(session, id, this.memberSet);
 
@@ -107,19 +106,19 @@ export class Walkie {
 
         s.on("finish", () => {
             this.incomingSessions.delete(id);
-            this.logEvent(`Input session ended. id=${id}, identity=${remoteId}`);
+            this.logEvent(`Input session ended. id=${id}, identity=${identity}`);
         });
 
         s.on("open", () => {
-            this.logEvent(`Input session openned. id=${id}, identity=${remoteId}`);
+            this.logEvent(`Input session openned. id=${id}, identity=${identity}`);
         });
 
         s.on("close", (cause: string) => {
-            this.logEvent(`Session closed. direction=${session.direction}, identity=${remoteId}, reason=${cause}`);
+            this.logEvent(`Session closed. direction=${session.direction}, identity=${identity}, reason=${cause}`);
         });
 
         s.on("member-closed", (out: WalkieOutgoingSession, cause: string) => {
-            this.logEvent(`Output session created. input-id=${s.id}, output-identity=${out.identity}, cause=${cause}`);
+            this.logEvent(`Output session closed. input-id=${s.id}, output-identity=${out.identity}, cause=${cause}`);
         });
 
         s.start();
@@ -127,9 +126,37 @@ export class Walkie {
         // Call other peers
         for (const memberToCall of s.pendingMembers) {
             const outG = new WalkieOutgoingSession(memberToCall);
-            this.phone.call(memberToCall, { mediaStream: outG.getMediaStream() });
-            this.logEvent(`Output session created. input-id=${s.id}, output-identity=${remoteId}`);
-            s.addOutgoing(remoteId, outG);
+            const outSession = this.phone.call(memberToCall,
+                {
+                    mediaStream: outG.getMediaStream(),
+                    mediaConstraints: {
+                        audio: true, video: false
+                    },
+                    pcConfig: {
+                        iceServers: [
+                            {
+                                "urls": "stun:stun.l.google.com:19302"
+                            },
+                            {
+                                "urls": "turn:webrtc.imira.net:3478",
+                                "username": "imira",
+                                "credential": "imira"
+                            }
+                        ]
+                    },
+                }
+            );
+            this.logEvent(`Output session created. input-id=${s.id}, output-identity=${outG.identity}`);
+            s.addOutgoing(memberToCall, outG);
+            outG.start(outSession);
+
+            outG.on("open", () => {
+                this.logEvent(`Output session openned. input-id=${s.id}, output-identity=${outG.identity}`);
+            });
+
+            outG.on("connected", () => {
+                this.logEvent(`Output session connected. input-id=${s.id}, output-identity=${outG.identity}`);
+            });
         }
     }
 
