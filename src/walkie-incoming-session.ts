@@ -75,11 +75,6 @@ export class WalkieIncomingSession extends EventEmitter {
                     {
                         "urls": "stun:stun.l.google.com:19302"
                     },
-                    {
-                        "urls": "turn:webrtc.imira.net:3478",
-                        "username": "imira",
-                        "credential": "imira"
-                    }
                 ]
             },
         });
@@ -119,8 +114,10 @@ export class WalkieIncomingSession extends EventEmitter {
         this.emit("peerconnection", connection);
         console.log("Incoming peer connection");
 
-        connection.addEventListener("track", ev => {
-            const track = ev.track;
+        connection.getReceivers().forEach((receiver) => {
+            console.log(receiver);
+            const track = receiver.track;
+            console.log("On track: " + track.kind);
             if (track.kind === "audio") {
                 this.onTrack(track);
             }
@@ -143,7 +140,7 @@ export class WalkieIncomingSession extends EventEmitter {
     }
 
     private onAudioData(data: AudioData) {
-        console.log("On audio data");
+        console.log("On audio data: " + data.samples.length + " bytes.");
         this.buffer.push(data);
         this.bufferSize += data.samples.length;
 

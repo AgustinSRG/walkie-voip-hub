@@ -10,6 +10,8 @@ import { Config, WalkieConfig } from './config';
 import { WalkieIncomingSession } from './walkie-incoming-session';
 import { WalkieOutgoingSession } from './walkie-outgoing-session';
 
+JsSIP.debug.enable('JsSIP:*');
+
 export class Walkie {
 
     public config: WalkieConfig;
@@ -136,11 +138,6 @@ export class Walkie {
                         iceServers: [
                             {
                                 "urls": "stun:stun.l.google.com:19302"
-                            },
-                            {
-                                "urls": "turn:webrtc.imira.net:3478",
-                                "username": "imira",
-                                "credential": "imira"
                             }
                         ]
                     },
