@@ -4,7 +4,7 @@
 
 import { AsyncSemaphore } from '@asanrom/async-tools';
 import { EventEmitter } from 'events';
-import { PeerConnectionEvent, RTCSession } from 'jssip/lib/RTCSession';
+import { RTCSession } from 'jssip/lib/RTCSession';
 import WebRTC from 'wrtc';
 import { Config } from './config';
 import { AudioData } from './walkie-incoming-session';
@@ -44,6 +44,8 @@ export class WalkieOutgoingSession extends EventEmitter {
 
     public lastChunkTimestamp: number;
 
+    public startTime: number;
+
     constructor(identity: string) {
         super();
 
@@ -57,10 +59,10 @@ export class WalkieOutgoingSession extends EventEmitter {
         this.buffer = [];
         this.bufferSize = 0;
         this.bufferLimit = Config.getInstance().bufferLength * 1024 * 1024;
-        this.lastChunkTimestamp = 0;
         this.bufferEnded = false;
 
         this.sem = new AsyncSemaphore(0);
+        this.startTime = Date.now();
     }
 
     /**
@@ -98,6 +100,7 @@ export class WalkieOutgoingSession extends EventEmitter {
 
         this.lastRateMsg = Date.now();
         this.byteCount = 0;
+        this.startTime = Date.now();
 
         while (!this.ended && (this.buffer.length > 0 || !this.bufferEnded)) {
             try {
@@ -107,8 +110,6 @@ export class WalkieOutgoingSession extends EventEmitter {
                 console.error("EX: " + ex.message);
                 return;
             }
-
-            //console.log("A")
 
             if (Date.now() - this.lastRateMsg > 5000) {
                 const bitrate = this.byteCount / ((Date.now() - this.lastRateMsg) / 1000);
@@ -128,15 +129,15 @@ export class WalkieOutgoingSession extends EventEmitter {
             const toSend = this.buffer.shift();
 
             // Wait
-            if (this.lastChunkTimestamp) {
-                const waitMS = Math.max(1, toSend.timestamp - this.lastChunkTimestamp);
+            const now = Date.now();
+            const currentTimestamp = now - this.startTime;
+            const waitMS = toSend.timestamp - currentTimestamp;
 
+            if (waitMS > 0) {
                 await (new Promise<void>(resolve => {
                     setTimeout(resolve, waitMS);
                 }));
             }
-
-            this.lastChunkTimestamp = toSend.timestamp;
 
             // Send chunk
             if (!this.ended) {

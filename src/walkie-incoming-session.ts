@@ -37,6 +37,8 @@ export class WalkieIncomingSession extends EventEmitter {
     private lastRateMsg: number;
     private byteCount: number;
 
+    private startTime: number;
+
     constructor(session: RTCSession, id: string, members: Set<string>) {
         super();
 
@@ -58,6 +60,7 @@ export class WalkieIncomingSession extends EventEmitter {
         this.ended = false;
         this.lastRateMsg = Date.now();
         this.byteCount = 0;
+        this.startTime = Date.now();
     }
 
     public start() {
@@ -105,6 +108,7 @@ export class WalkieIncomingSession extends EventEmitter {
         this.emit("open");
         this.lastRateMsg = Date.now();
         this.byteCount = 0;
+        this.startTime = Date.now();
     }
 
     private onPeerConnection(ev: PeerConnectionEvent) {
@@ -140,7 +144,6 @@ export class WalkieIncomingSession extends EventEmitter {
     }
 
     private onAudioData(data: AudioData) {
-        const now = Date.now();
         this.byteCount += data.samples.length;
 
         if (Date.now() - this.lastRateMsg > 5000) {
@@ -150,9 +153,12 @@ export class WalkieIncomingSession extends EventEmitter {
             this.lastRateMsg = Date.now();
         }
 
+        const now = Date.now();
+        const relativeTimestamp = now - this.startTime;
+
         // Send to connected peers
         for (const peer of this.members.values()) {
-            peer.addData(data, now);
+            peer.addData(data, relativeTimestamp);
         }
     }
 
