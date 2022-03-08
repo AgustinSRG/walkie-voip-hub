@@ -117,6 +117,10 @@ export class Walkie {
             this.logEvent(`Session closed. direction=${session.direction}, identity=${identity}, reason=${cause}`);
         });
 
+        s.on("bitrate", (bitrate: number) => {
+            this.logDebug(`Input bitrate report. identity=${identity}, bitrate=${bitrate} bytes/s`);
+        });
+
         s.on("member-closed", (out: WalkieOutgoingSession, cause: string) => {
             this.logEvent(`Output session closed. input-id=${s.id}, output-identity=${out.identity}, cause=${cause}`);
         });
@@ -151,6 +155,14 @@ export class Walkie {
 
             outG.on("connected", () => {
                 this.logEvent(`Output session connected. input-id=${s.id}, output-identity=${outG.identity}`);
+            });
+
+            outG.on("bitrate", (bitrate: number) => {
+                this.logDebug(`Output bitrate report. input-id=${s.id}, output-identity=${outG.identity}, bitrate=${bitrate} bytes/s`);
+            });
+
+            outG.on("buffer-end", () => {
+                this.logEvent(`Output session buffer ended. input-id=${s.id}, output-identity=${outG.identity}`);
             });
         }
     }

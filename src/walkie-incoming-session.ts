@@ -23,10 +23,6 @@ export class WalkieIncomingSession extends EventEmitter {
     public session: RTCSession;
     public identity: string;
 
-    public buffer: AudioData[];
-    public bufferSize: number;
-    public bufferLimit: number;
-
     public track: MediaStreamTrack;
     public sink: WebRTC.nonstandard.RTCAudioSink;
 
@@ -47,9 +43,6 @@ export class WalkieIncomingSession extends EventEmitter {
         this.id = id;
         this.session = session;
         this.identity = session.remote_identity.uri.toString();
-        this.buffer = [];
-        this.bufferSize = 0;
-        this.bufferLimit = Config.getInstance().bufferLength * 1024 * 1024;
 
         this.pendingMembers = new Set();
         this.pendingConnected = new Set();
@@ -110,13 +103,14 @@ export class WalkieIncomingSession extends EventEmitter {
 
     private onCallConfirmed() {
         this.emit("open");
+        this.lastRateMsg = Date.now();
+        this.byteCount = 0;
     }
 
     private onPeerConnection(ev: PeerConnectionEvent) {
         const connection = ev.peerconnection;
 
         this.emit("peerconnection", connection);
-        console.log("Incoming peer connection");
 
         connection.getReceivers().forEach((receiver) => {
             const track = receiver.track;
@@ -127,7 +121,7 @@ export class WalkieIncomingSession extends EventEmitter {
 
         connection.ontrack = (ev: RTCTrackEvent) => {
             const track = ev.track;
-            console.log("On track 2: " + track.kind);
+            // console.log("On track 2: " + track.kind);
             if (track.kind === "audio") {
                 this.onTrack(track);
             }
@@ -142,37 +136,23 @@ export class WalkieIncomingSession extends EventEmitter {
 
         this.track = track;
         this.sink = new WebRTC.nonstandard.RTCAudioSink(track);
-
-        this.buffer = [];
-        this.bufferSize = 0;
         this.sink.addEventListener('data', this.onAudioData.bind(this));
     }
 
     private onAudioData(data: AudioData) {
+        const now = Date.now();
         this.byteCount += data.samples.length;
 
         if (Date.now() - this.lastRateMsg > 5000) {
             const bitrate = this.byteCount / ((Date.now() - this.lastRateMsg) / 1000);
-            if (Config.getInstance().logDebug) {
-                console.log(`[Bitrate] ${bitrate} bytes/s`);
-            }
+            this.emit("bitrate", bitrate);
             this.byteCount = 0;
             this.lastRateMsg = Date.now();
         }
 
-        this.buffer.push(data);
-        this.bufferSize += data.samples.length;
-
-        while (this.bufferSize > this.bufferLimit && this.buffer.length > 0) {
-            const removed = this.buffer.shift();
-            this.bufferSize -= removed.samples.length;
-        }
-
         // Send to connected peers
         for (const peer of this.members.values()) {
-            if (peer.connected) {
-                peer.sendData(data);
-            }
+            peer.addData(data, now);
         }
     }
 
@@ -186,12 +166,7 @@ export class WalkieIncomingSession extends EventEmitter {
     }
 
     private onOutgoingConnected(out: WalkieOutgoingSession) {
-        // Send buffer
-        console.log("Outgoing connected, Sending stored data with length = " + this.bufferSize + " bytes.");
         this.pendingConnected.delete(out.identity);
-        this.buffer.forEach(data => {
-            out.sendData(data);
-        });
 
         if (this.ended && this.pendingConnected.size === 0) {
             this.onFinished();

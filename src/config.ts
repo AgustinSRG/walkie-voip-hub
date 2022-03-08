@@ -61,7 +61,7 @@ export class Config {
             this.logEvents = true;
             this.logDebug = true;
             this.logType = 3;
-            JsSIP.debug.enable('JsSIP:*');
+            //JsSIP.debug.enable('JsSIP:*');
             break;
         default:
             this.logEvents = true;
