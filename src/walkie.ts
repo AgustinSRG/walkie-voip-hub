@@ -10,8 +10,6 @@ import { Config, WalkieConfig } from './config';
 import { WalkieIncomingSession } from './walkie-incoming-session';
 import { WalkieOutgoingSession } from './walkie-outgoing-session';
 
-JsSIP.debug.enable('JsSIP:*');
-
 export class Walkie {
 
     public config: WalkieConfig;
@@ -134,13 +132,13 @@ export class Walkie {
                     mediaConstraints: {
                         audio: true, video: false
                     },
-                    pcConfig: {
+                    /*pcConfig: {
                         iceServers: [
                             {
                                 "urls": "stun:stun.l.google.com:19302"
                             }
                         ]
-                    },
+                    },*/
                 }
             );
             this.logEvent(`Output session created. input-id=${s.id}, output-identity=${outG.identity}`);

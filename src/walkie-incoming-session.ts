@@ -38,6 +38,9 @@ export class WalkieIncomingSession extends EventEmitter {
     public id: string;
     public ended: boolean;
 
+    private lastRateMsg: number;
+    private byteCount: number;
+
     constructor(session: RTCSession, id: string, members: Set<string>) {
         super();
 
@@ -60,6 +63,8 @@ export class WalkieIncomingSession extends EventEmitter {
         }
 
         this.ended = false;
+        this.lastRateMsg = Date.now();
+        this.byteCount = 0;
     }
 
     public start() {
@@ -70,24 +75,23 @@ export class WalkieIncomingSession extends EventEmitter {
         this.session.on("peerconnection", this.onPeerConnection.bind(this));
 
         this.session.answer({
-            pcConfig: {
+            mediaStream: new MediaStream(),
+            /*pcConfig: {
                 iceServers: [
                     {
                         "urls": "stun:stun.l.google.com:19302"
                     },
                 ]
-            },
+            },*/
         });
     }
 
     public destroy() {
         if (this.sink) {
-            this.sink.removeAllListeners();
             this.sink.stop();
             this.sink = null;
         }
         this.ended = true;
-        this.session.removeAllListeners();
         if (this.session.status !== 8) {
             this.session.terminate();
         }
@@ -100,7 +104,7 @@ export class WalkieIncomingSession extends EventEmitter {
         this.emit("close", ev.cause || "undetermined");
 
         if (this.pendingConnected.size === 0) {
-            this.emit("finish");
+            this.onFinished();
         }
     }
 
@@ -115,18 +119,23 @@ export class WalkieIncomingSession extends EventEmitter {
         console.log("Incoming peer connection");
 
         connection.getReceivers().forEach((receiver) => {
-            console.log(receiver);
             const track = receiver.track;
-            console.log("On track: " + track.kind);
             if (track.kind === "audio") {
                 this.onTrack(track);
             }
         });
+
+        connection.ontrack = (ev: RTCTrackEvent) => {
+            const track = ev.track;
+            console.log("On track 2: " + track.kind);
+            if (track.kind === "audio") {
+                this.onTrack(track);
+            }
+        };
     }
 
     private onTrack(track: MediaStreamTrack) {
         if (this.sink) {
-            this.sink.removeAllListeners();
             this.sink.stop();
             this.sink = null;
         }
@@ -140,7 +149,17 @@ export class WalkieIncomingSession extends EventEmitter {
     }
 
     private onAudioData(data: AudioData) {
-        console.log("On audio data: " + data.samples.length + " bytes.");
+        this.byteCount += data.samples.length;
+
+        if (Date.now() - this.lastRateMsg > 5000) {
+            const bitrate = this.byteCount / ((Date.now() - this.lastRateMsg) / 1000);
+            if (Config.getInstance().logDebug) {
+                console.log(`[Bitrate] ${bitrate} bytes/s`);
+            }
+            this.byteCount = 0;
+            this.lastRateMsg = Date.now();
+        }
+
         this.buffer.push(data);
         this.bufferSize += data.samples.length;
 
@@ -168,6 +187,7 @@ export class WalkieIncomingSession extends EventEmitter {
 
     private onOutgoingConnected(out: WalkieOutgoingSession) {
         // Send buffer
+        console.log("Outgoing connected, Sending stored data with length = " + this.bufferSize + " bytes.");
         this.pendingConnected.delete(out.identity);
         this.buffer.forEach(data => {
             out.sendData(data);

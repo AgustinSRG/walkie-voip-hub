@@ -1,9 +1,9 @@
 [
     {
         "id": "group-1",
-        "ws": "wss://localhost:8089/ws",
-        "uri": "sip:sip-user@domain.com",
-        "password": "password",
-        "members": ["sip:sip-user@domain.com", "sip:sip-user@domain.com", "sip:sip-user@domain.com"]
+        "ws": "ws://testing.servers.grs.es:10080",
+        "uri": "sip:grs_03@testing.servers.grs.es",
+        "password": "grs_testing_03",
+        "members": ["sip:1004@testing.servers.grs.es", "sip:1005@testing.servers.grs.es"]
     }
 ]

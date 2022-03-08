@@ -4,6 +4,7 @@
 
 import dotenv from "dotenv";
 import { readFileSync } from "fs";
+import JsSIP from 'jssip';
 
 dotenv.config(); // Load env variables
 
@@ -60,6 +61,7 @@ export class Config {
             this.logEvents = true;
             this.logDebug = true;
             this.logType = 3;
+            JsSIP.debug.enable('JsSIP:*');
             break;
         default:
             this.logEvents = true;

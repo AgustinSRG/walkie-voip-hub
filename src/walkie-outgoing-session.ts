@@ -38,14 +38,10 @@ export class WalkieOutgoingSession extends EventEmitter {
         this.session.on("failed", this.onSessionClose.bind(this));
 
         this.session.on("confirmed", this.onCallConfirmed.bind(this));
-        this.session.on("peerconnection", this.onPeerConnection.bind(this));
     }
 
     public destroy() {
         this.ended = true;
-        //this.track.stop();
-        //this.source.close();
-        this.session.removeAllListeners();
         if (this.session.status !== 8) {
             this.session.terminate();
         }
@@ -71,7 +67,9 @@ export class WalkieOutgoingSession extends EventEmitter {
      * Closes call after 2 seconds
      */
     public close() {
-        setTimeout(this.destroy.bind(this), 2000);
+        setTimeout(() => {
+            this.destroy();
+        }, 2000);
     }
 
     private onSessionClose(ev: any) {
@@ -81,9 +79,6 @@ export class WalkieOutgoingSession extends EventEmitter {
 
     private onCallConfirmed() {
         this.emit("open");
-    }
-
-    private onPeerConnection(ev: PeerConnectionEvent) {
         this.connected = true;
         this.emit("connected", this);
     }
